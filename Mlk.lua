@@ -284,7 +284,7 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 14
 title.Parent = mainFrame
 
--- КНОПКА ЗАКРЫТИЯ (Теперь она просто удаляет МЕНЮ, а не выключает чит)
+-- КНОПКА ЗАКРЫТИЯ (Удаляет только МЕНЮ, чит продолжает работать)
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 28, 0, 28)
 closeBtn.Position = UDim2.new(1, -33, 0, 4)
@@ -297,7 +297,7 @@ closeBtn.Parent = mainFrame
 local btnCorner = Instance.new("UICorner", closeBtn)
 btnCorner.CornerRadius = UDim.new(1, 0)
 
--- Поле ввода
+-- Поле ввода размера
 local input = Instance.new("TextBox")
 input.Size = UDim2.new(0, 140, 0, 40)
 input.Position = UDim2.new(0.5, -70, 0, 55)
@@ -310,13 +310,12 @@ input.TextSize = 18
 input.Parent = mainFrame
 Instance.new("UICorner", input)
 
--- ЛОГИКА КНОПКИ: Удаляем только визуальную часть
+-- ЛОГИКА КНОПКИ: Закрываем визуальную часть, оставляя поток активным
 closeBtn.MouseButton1Click:Connect(function()
     screenGui:Destroy() 
-    -- Мы НЕ меняем _G.HitboxRunning, поэтому цикл ниже продолжит работать!
 end)
 
--- Обновление размера
+-- Обновление размера при потере фокуса
 input.FocusLost:Connect(function()
     local num = tonumber(input.Text)
     if num then
@@ -326,16 +325,17 @@ input.FocusLost:Connect(function()
     end
 end)
 
--- ПОСТОЯННЫЙ ЦИКЛ (будет работать, пока ты не перезайдешь в игру)
+-- ПОСТОЯННЫЙ ЦИКЛ ОБНОВЛЕНИЯ ХИТБОКСОВ
 task.spawn(function()
     while true do
-        task.wait(0.1) -- Небольшая пауза, чтобы не лагало
+        task.wait(0.1) -- Защита от лагов
         if _G.HitboxRunning then
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= player then
                     pcall(function()
                         local char = p.Character
                         if char then
+                            -- Список частей тела, которые будут раздуваться
                             local parts = {"HumanoidRootPart", "Head", "UpperTorso", "LowerTorso"}
                             for _, name in pairs(parts) do
                                 local part = char:FindFirstChild(name)
@@ -354,35 +354,6 @@ task.spawn(function()
     end
 end)
 
-
-local AimSettings = { Aimbot = false, WallCheck = true, Locked = nil }
-local AimGui = Instance.new("ScreenGui", game:GetService("CoreGui")); AimGui.Enabled = false
-local function MakeDrag(o)
-    local d, i, s, p; o.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then d = true; s = input.Position; p = o.Position end end)
-    o.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement then i = input end end)
-    runService.RenderStepped:Connect(function() if d and i then local dl = i.Position - s; o.Position = UDim2.new(p.X.Scale, p.X.Offset + dl.X, p.Y.Scale, p.Y.Offset + dl.Y) end end)
-    game:GetService("UserInputService").InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then d = false end end)
-end
-local ac = Instance.new("TextButton", AimGui); ac.Size = UDim2.new(0,50,0,50); ac.Position = UDim2.new(0,20,0.4,0); ac.Text = "AIM"; ac.BackgroundColor3 = Color3.new(1,0,0); Instance.new("UICorner", ac, {CornerRadius = UDim.new(1,0)})
-local wc = Instance.new("TextButton", AimGui); wc.Size = UDim2.new(0,50,0,50); wc.Position = UDim2.new(0,20,0.4,55); wc.Text = "WALL"; wc.BackgroundColor3 = Color3.new(0,1,0); Instance.new("UICorner", wc, {CornerRadius = UDim.new(1,0)})
-MakeDrag(ac); MakeDrag(wc)
-ac.MouseButton1Click:Connect(function() AimSettings.Aimbot = not AimSettings.Aimbot; ac.BackgroundColor3 = AimSettings.Aimbot and Color3.new(0,1,0) or Color3.new(1,0,0) end)
-wc.MouseButton1Click:Connect(function() AimSettings.WallCheck = not AimSettings.WallCheck; wc.BackgroundColor3 = AimSettings.WallCheck and Color3.new(0,1,0) or Color3.new(1,0,0) end)
-
-runService.RenderStepped:Connect(function()
-    if AimSettings.Aimbot then
-        local best, target = 500, nil
-        for _, p in pairs(game.Players:GetPlayers()) do
-            if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
-                local pos, vis = workspace.CurrentCamera:WorldToViewportPoint(p.Character.Head.Position)
-                if vis then local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(workspace.CurrentCamera.ViewportSize.X/2, workspace.CurrentCamera.ViewportSize.Y/2)).Magnitude
-                    if mag < best then best = mag; target = p end
-                end
-            end
-        end
-        if target then workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, target.Character.Head.Position) end
-    end
-end)
 
 CreateButton("AIMBOT: OFF", "Combat", function(self)
     AimGui.Enabled = not AimGui.Enabled
