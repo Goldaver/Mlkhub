@@ -4,6 +4,9 @@ local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 screenGui.Name = "MyPersonalHub"
 screenGui.ResetOnSpawn = false
 
+_G.HeadSize = _G.HeadSize or 25
+_G.HitboxEnabled = false
+
 -- ГЛАВНОЕ ОКНО
 local mainFrame = Instance.new("Frame", screenGui)
 mainFrame.Size = UDim2.new(0, 450, 0, 250)
@@ -148,7 +151,7 @@ runService.RenderStepped:Connect(function()
 end)
 
 -- FLY
-local flying = false; local flySpeed = 60; local fv, fg
+local flying = false; local fv, fg
 local function cleanFly()
     flying = false
     local char = player.Character; local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -172,8 +175,8 @@ CreateButton("FLY: OFF", "Scripts", function(self)
                 if not root or not flying then break end
                 local cam = workspace.CurrentCamera; local moveDir = hum.MoveDirection
                 if moveDir.Magnitude > 0 then
-                    fv.velocity = cam.CFrame.LookVector * (moveDir.Magnitude * flySpeed)
-                    if moveDir:Dot(cam.CFrame.LookVector) < 0 then fv.velocity = cam.CFrame.LookVector * (-flySpeed) end
+                    fv.velocity = cam.CFrame.LookVector * (moveDir.Magnitude * 60)
+                    if moveDir:Dot(cam.CFrame.LookVector) < 0 then fv.velocity = cam.CFrame.LookVector * (-60) end
                 else fv.velocity = Vector3.new(0, 0, 0) end
                 fg.cframe = cam.CFrame
             end
@@ -184,18 +187,13 @@ end)
 
 -- NOCLIP
 local noclipEnabled = false; local noclipConn
-local function doNoclip()
-    if player.Character then
-        for _, part in pairs(player.Character:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = false end
-        end
-    end
-end
 CreateButton("NOCLIP: OFF", "Scripts", function(self)
     noclipEnabled = not noclipEnabled
     self.Text = noclipEnabled and "NOCLIP: ON" or "NOCLIP: OFF"
     self.BackgroundColor3 = noclipEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
-    if noclipEnabled then noclipConn = runService.Stepped:Connect(doNoclip)
+    if noclipEnabled then noclipConn = runService.Stepped:Connect(function()
+        if player.Character then for _, p in pairs(player.Character:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end end
+    end)
     else if noclipConn then noclipConn:Disconnect() end 
         if player.Character then for _, p in pairs(player.Character:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = true end end end
     end
@@ -209,6 +207,21 @@ CreateButton("INF JUMP: OFF", "Scripts", function(self)
     self.BackgroundColor3 = InfJump and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
 end)
 game:GetService("UserInputService").JumpRequest:Connect(function() if InfJump then player.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Jumping") end end)
+
+-- SLOW FALL
+local sfActive = false
+local sfLoop = nil
+local function applySlowFall()
+	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+	local hrp = player.Character.HumanoidRootPart
+	hrp.Velocity = Vector3.new(hrp.Velocity.X, math.clamp(hrp.Velocity.Y, -8, 50), hrp.Velocity.Z)
+end
+CreateButton("Slow Fall", "Scripts", function(self)
+    sfActive = not sfActive
+    self.Text = sfActive and "SLOW FALL: ON" or "SLOW FALL: OFF"
+    self.BackgroundColor3 = sfActive and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
+    if sfActive then sfLoop = runService.RenderStepped:Connect(applySlowFall) else if sfLoop then sfLoop:Disconnect() sfLoop = nil end end
+end)
 
 -- TP POS
 local tpGui = Instance.new("ScreenGui", game:GetService("CoreGui")); tpGui.Enabled = false
@@ -226,16 +239,15 @@ local t2 = makeTpBtn("TP 2", UDim2.new(0,85,0,50), Color3.fromRGB(30,144,255))
 s1.MouseButton1Click:Connect(function() saved1 = player.Character.HumanoidRootPart.CFrame; s1.Text = "OK!"; task.wait(0.5); s1.Text = "SET 1" end)
 s2.MouseButton1Click:Connect(function() saved2 = player.Character.HumanoidRootPart.CFrame; s2.Text = "OK!"; task.wait(0.5); s2.Text = "SET 2" end)
 
-local function tpHandler(btn, pos, isLoop)
-    if isLoop then return false end
+local function tpHandler(btn, pos, isLoopName)
     local down = true; task.spawn(function() task.wait(3); if down and pos then 
-        isLoop = true; while isLoop and tpGui.Enabled do player.Character.HumanoidRootPart.CFrame = pos; btn.Text = "LOOP"; task.wait(1) end
+        if isLoopName == "1" then loop1 = true while loop1 and tpGui.Enabled do player.Character.HumanoidRootPart.CFrame = pos; t1.Text = "LOOP"; task.wait(1) end
+        else loop2 = true while loop2 and tpGui.Enabled do player.Character.HumanoidRootPart.CFrame = pos; t2.Text = "LOOP"; task.wait(1) end end
     end end)
-    btn.MouseButton1Up:Connect(function() down = false; if not isLoop and pos then player.Character.HumanoidRootPart.CFrame = pos end end)
-    return isLoop
+    btn.MouseButton1Up:Connect(function() down = false; if ((isLoopName=="1" and not loop1) or (isLoopName=="2" and not loop2)) and pos then player.Character.HumanoidRootPart.CFrame = pos end end)
 end
-t1.MouseButton1Down:Connect(function() if loop1 then loop1 = false; t1.Text = "TP 1" else loop1 = tpHandler(t1, saved1, loop1) end end)
-t2.MouseButton1Down:Connect(function() if loop2 then loop2 = false; t2.Text = "TP 2" else loop2 = tpHandler(t2, saved2, loop2) end end)
+t1.MouseButton1Down:Connect(function() if loop1 then loop1 = false; t1.Text = "TP 1" else tpHandler(t1, saved1, "1") end end)
+t2.MouseButton1Down:Connect(function() if loop2 then loop2 = false; t2.Text = "TP 2" else tpHandler(t2, saved2, "2") end end)
 
 CreateButton("TP POS: OFF", "Scripts", function(self)
     tpGui.Enabled = not tpGui.Enabled
@@ -246,96 +258,58 @@ end)
 -----------------------------------------------------------
 -- РАЗДЕЛ [ COMBAT ]
 -----------------------------------------------------------
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
-local player = Players.LocalPlayer
 
--- Глобальные настройки (не сбрасываются)
-_G.HeadSize = _G.HeadSize or 25
-_G.HitboxRunning = true 
+-- ОКНО НАСТРОЙКИ ХИТБОКСА (СОЗДАЕТСЯ ОДИН РАЗ И СКРЫВАЕТСЯ)
+local hitboxGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+hitboxGui.Name = "HitboxSettingsMenu"
+hitboxGui.Enabled = false
 
--- Создание UI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "HitboxPermanent"
-screenGui.ResetOnSpawn = false
-pcall(function() screenGui.Parent = CoreGui end)
-if not screenGui.Parent then screenGui.Parent = player:WaitForChild("PlayerGui") end
+local hFrame = Instance.new("Frame", hitboxGui)
+hFrame.Size = UDim2.new(0, 180, 0, 120)
+hFrame.Position = UDim2.new(0.5, 230, 0.4, -60) -- Появляется аккуратно справа от главного меню
+hFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+hFrame.Active = true; hFrame.Draggable = true
+Instance.new("UICorner", hFrame).CornerRadius = UDim.new(0, 10)
 
--- Главное окно
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 180, 0, 120)
-mainFrame.Position = UDim2.new(0.5, -90, 0.2, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true 
-mainFrame.Parent = screenGui
+local hTitle = Instance.new("TextLabel", hFrame)
+hTitle.Size = UDim2.new(1, 0, 0, 35); hTitle.Text = "HITBOX MENU"; hTitle.TextColor3 = Color3.new(1,1,1)
+hTitle.BackgroundTransparency = 1; hTitle.Font = Enum.Font.GothamBold; hTitle.TextSize = 14
 
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+local hCloseBtn = Instance.new("TextButton", hFrame)
+hCloseBtn.Size = UDim2.new(0, 28, 0, 28); hCloseBtn.Position = UDim2.new(1, -33, 0, 4)
+hCloseBtn.Text = "X"; hCloseBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60); hCloseBtn.TextColor3 = Color3.new(1,1,1)
+hCloseBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", hCloseBtn).CornerRadius = UDim.new(1, 0)
 
--- Заголовок
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 35)
-title.Text = "HITBOX MENU"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.BackgroundTransparency = 1
-title.Font = Enum.Font.GothamBold
-title.TextSize = 14
-title.Parent = mainFrame
+local hInput = Instance.new("TextBox", hFrame)
+hInput.Size = UDim2.new(0, 140, 0, 40); hInput.Position = UDim2.new(0.5, -70, 0, 55)
+hInput.Text = tostring(_G.HeadSize); hInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+hInput.TextColor3 = Color3.new(1,1,1); hInput.Font = Enum.Font.Gotham; hInput.TextSize = 18
+Instance.new("UICorner", hInput)
 
--- КНОПКА ЗАКРЫТИЯ (Удаляет только МЕНЮ, чит продолжает работать)
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 28, 0, 28)
-closeBtn.Position = UDim2.new(1, -33, 0, 4)
-closeBtn.Text = "X"
-closeBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.Parent = mainFrame
-
-local btnCorner = Instance.new("UICorner", closeBtn)
-btnCorner.CornerRadius = UDim.new(1, 0)
-
--- Поле ввода размера
-local input = Instance.new("TextBox")
-input.Size = UDim2.new(0, 140, 0, 40)
-input.Position = UDim2.new(0.5, -70, 0, 55)
-input.PlaceholderText = "Size..."
-input.Text = tostring(_G.HeadSize)
-input.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-input.TextColor3 = Color3.fromRGB(255, 255, 255)
-input.Font = Enum.Font.Gotham
-input.TextSize = 18
-input.Parent = mainFrame
-Instance.new("UICorner", input)
-
--- ЛОГИКА КНОПКИ: Закрываем визуальную часть, оставляя поток активным
-closeBtn.MouseButton1Click:Connect(function()
-    screenGui:Destroy() 
+hCloseBtn.MouseButton1Click:Connect(function() hitboxGui.Enabled = false end)
+hInput.FocusLost:Connect(function()
+    local num = tonumber(hInput.Text)
+    if num then _G.HeadSize = num else hInput.Text = tostring(_G.HeadSize) end
 end)
 
--- Обновление размера при потере фокуса
-input.FocusLost:Connect(function()
-    local num = tonumber(input.Text)
-    if num then
-        _G.HeadSize = num
-    else
-        input.Text = tostring(_G.HeadSize)
-    end
+-- КНОПКА В КАНАЛЕ COMBAT
+CreateButton("HITBOX: OFF", "Combat", function(self)
+    _G.HitboxEnabled = not _G.HitboxEnabled
+    self.Text = _G.HitboxEnabled and "HITBOX: ON" or "HITBOX: OFF"
+    self.BackgroundColor3 = _G.HitboxEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
+    hitboxGui.Enabled = _G.HitboxEnabled -- Открываем/закрываем меню ввода вместе с кнопкой
 end)
 
--- ПОСТОЯННЫЙ ЦИКЛ ОБНОВЛЕНИЯ ХИТБОКСОВ
+-- ПОСТОЯННЫЙ ЦИКЛ ОРАБОТКИ ХИТБОКСОВ
 task.spawn(function()
     while true do
-        task.wait(0.1) -- Защита от лагов
-        if _G.HitboxRunning then
-            for _, p in pairs(Players:GetPlayers()) do
+        task.wait(0.2)
+        if _G.HitboxEnabled then
+            for _, p in pairs(game.Players:GetPlayers()) do
                 if p ~= player then
                     pcall(function()
                         local char = p.Character
                         if char then
-                            -- Список частей тела, которые будут раздуваться
                             local parts = {"HumanoidRootPart", "Head", "UpperTorso", "LowerTorso"}
                             for _, name in pairs(parts) do
                                 local part = char:FindFirstChild(name)
@@ -354,6 +328,49 @@ task.spawn(function()
     end
 end)
 
+-- ВОССТАНОВЛЕННЫЙ AIMBOT С ТВОЕЙ КАМЕРОЙ
+local AimSettings = { Aimbot = false, WallCheck = true, Sens = 1, Pred = 0, LockedTarget = nil }
+local AimGui = Instance.new("ScreenGui", game:GetService("CoreGui")); AimGui.Enabled = false
+
+local function MakeAimDraggable(obj)
+    local dragging, dragInput, dragStart, startPos
+    obj.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; dragStart = input.Position; startPos = obj.Position end end)
+    obj.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end end)
+    runService.RenderStepped:Connect(function() if dragging and dragInput then local delta = dragInput.Position - dragStart; obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
+    game:GetService("UserInputService").InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+end
+
+local ac = Instance.new("TextButton", AimGui); ac.Size = UDim2.new(0, 55, 0, 55); ac.Position = UDim2.new(0, 25, 0.4, 0); ac.BackgroundColor3 = Color3.fromRGB(255, 0, 0); ac.Text = "AIM"; ac.TextColor3 = Color3.new(1,1,1); ac.Font = Enum.Font.GothamBold; Instance.new("UICorner", ac).CornerRadius = UDim.new(1, 0)
+local wc = Instance.new("TextButton", AimGui); wc.Size = UDim2.new(0, 55, 0, 55); wc.Position = UDim2.new(0, 25, 0.4, 65); wc.BackgroundColor3 = Color3.fromRGB(0, 255, 0); wc.Text = "WALL"; wc.TextColor3 = Color3.new(1,1,1); wc.Font = Enum.Font.GothamBold; Instance.new("UICorner", wc).CornerRadius = UDim.new(1, 0)
+MakeAimDraggable(ac); MakeAimDraggable(wc)
+
+local function IsAlive(p) return p and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 end
+local function IsVisible(targetChar) if not AimSettings.WallCheck then return true end local params = RaycastParams.new(); params.FilterType = Enum.RaycastFilterType.Exclude; params.FilterDescendantsInstances = {player.Character, targetChar}; local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, targetChar.Head.Position - workspace.CurrentCamera.CFrame.Position, params); return result == nil end
+
+ac.MouseButton1Click:Connect(function() AimSettings.Aimbot = not AimSettings.Aimbot; if not AimSettings.Aimbot then AimSettings.LockedTarget = nil end; ac.BackgroundColor3 = AimSettings.Aimbot and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0) end)
+wc.MouseButton1Click:Connect(function() AimSettings.WallCheck = not AimSettings.WallCheck; wc.BackgroundColor3 = AimSettings.WallCheck and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0) end)
+
+runService.RenderStepped:Connect(function()
+    if AimSettings.Aimbot then
+        if not AimSettings.LockedTarget or not IsAlive(AimSettings.LockedTarget) or not IsVisible(AimSettings.LockedTarget.Character) then
+            local bestDist = 500; AimSettings.LockedTarget = nil
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p ~= player and IsAlive(p) and IsVisible(p.Character) then
+                    local pos, vis = workspace.CurrentCamera:WorldToViewportPoint(p.Character.Head.Position)
+                    if vis then local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(workspace.CurrentCamera.ViewportSize.X/2, workspace.CurrentCamera.ViewportSize.Y/2)).Magnitude; if mag < bestDist then bestDist = mag; AimSettings.LockedTarget = p end end
+                end
+            end
+        end
+        if AimSettings.LockedTarget then 
+            local head = AimSettings.LockedTarget.Character.Head
+            local hrp = AimSettings.LockedTarget.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local prediction = hrp.AssemblyLinearVelocity * AimSettings.Pred
+                workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, head.Position + prediction), AimSettings.Sens)
+            end
+        end
+    end
+end)
 
 CreateButton("AIMBOT: OFF", "Combat", function(self)
     AimGui.Enabled = not AimGui.Enabled
@@ -361,7 +378,13 @@ CreateButton("AIMBOT: OFF", "Combat", function(self)
     self.BackgroundColor3 = AimGui.Enabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
 end)
 
+-----------------------------------------------------------
 -- КНОПКА СВЕРНУТЬ (M)
+-----------------------------------------------------------
 local minBtn = Instance.new("TextButton", screenGui); minBtn.Size = UDim2.new(0, 35, 0, 35); minBtn.Position = UDim2.new(0, 10, 0, 10); minBtn.Text = "M"
-minBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255); minBtn.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", minBtn, {CornerRadius = UDim.new(1,0)})
-minBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
+minBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255); minBtn.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", minBtn).CornerRadius = UDim.new(1,0)
+minBtn.MouseButton1Click:Connect(function() 
+    mainFrame.Visible = not mainFrame.Visible 
+    -- Если хаб скрывают, скрываем и настройки хитбокса, чтобы не висели в воздухе
+    if not mainFrame.Visible then hitboxGui.Enabled = false elseif _G.HitboxEnabled then hitboxGui.Enabled = true end
+end)
