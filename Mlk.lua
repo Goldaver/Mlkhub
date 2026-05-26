@@ -155,6 +155,33 @@ CreateButton("INF JUMP", "Scripts", function(self)
 end)
 game:GetService("UserInputService").JumpRequest:Connect(function() if InfiniteJumpEnabled then player.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Jumping") end end)
 
+-- СКОРРЕКТИРОВАННЫЙ SLOW FALL БЕЗ СВОЕГО МЕНЮ
+local sfActive = false
+local sfLoop = nil
+
+local function applySlowFall()
+	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+	local hrp = player.Character.HumanoidRootPart
+	hrp.Velocity = Vector3.new(hrp.Velocity.X, math.clamp(hrp.Velocity.Y, -8, 50), hrp.Velocity.Z)
+end
+
+CreateButton("Slow Fall", "Scripts", function(self)
+    sfActive = not sfActive
+    self.Text = sfActive and "SLOW FALL: ON" or "SLOW FALL: OFF"
+    self.BackgroundColor3 = sfActive and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
+    
+    if sfActive then
+        sfLoop = runService.RenderStepped:Connect(function()
+            applySlowFall()
+        end)
+    else
+        if sfLoop then 
+            sfLoop:Disconnect() 
+            sfLoop = nil 
+        end
+    end
+end)
+
 -----------------------------------------------------------
 -- РАЗДЕЛ [ COMBAT ]
 -----------------------------------------------------------
@@ -171,7 +198,7 @@ runService.RenderStepped:Connect(function()
     end) end end end
 end)
 
--- AIMBOT СКРИПТ
+-- ОРИГИНАЛЬНЫЙ AIMBOT СКРИПТ (С ТВОЕЙ КАМЕРОЙ)
 local AimSettings = { Aimbot = false, WallCheck = true, Sens = 1, Pred = 0, LockedTarget = nil }
 local AimGui = Instance.new("ScreenGui", game:GetService("CoreGui")); AimGui.Enabled = false
 
@@ -187,10 +214,10 @@ local AimCircle = Instance.new("TextButton", AimGui); AimCircle.Size = UDim2.new
 local WallCircle = Instance.new("TextButton", AimGui); WallCircle.Size = UDim2.new(0, 55, 0, 55); WallCircle.Position = UDim2.new(0, 25, 0.4, 65); WallCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 0); WallCircle.Text = "WALL"; WallCircle.TextColor3 = Color3.new(1,1,1); WallCircle.Font = Enum.Font.GothamBold; Instance.new("UICorner", WallCircle).CornerRadius = UDim.new(1, 0)
 MakeAimDraggable(AimCircle); MakeAimDraggable(WallCircle)
 
-AimCircle.MouseButton1Click:Connect(function() AimSettings.Aimbot = not AimSettings.Aimbot; AimCircle.BackgroundColor3 = AimSettings.Aimbot and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0) end)
+AimCircle.MouseButton1Click:Connect(function() AimSettings.Aimbot = not AimSettings.Aimbot; if not AimSettings.Aimbot then AimSettings.LockedTarget = nil end; AimCircle.BackgroundColor3 = AimSettings.Aimbot and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0) end)
 WallCircle.MouseButton1Click:Connect(function() AimSettings.WallCheck = not AimSettings.WallCheck; WallCircle.BackgroundColor3 = AimSettings.WallCheck and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0) end)
 
-local function IsAlive(p) return p and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 end
+local function IsAlive(p) return p and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 and not p.Character:FindFirstChild("Downed") end
 local function IsVisible(targetChar) if not AimSettings.WallCheck then return true end local params = RaycastParams.new(); params.FilterType = Enum.RaycastFilterType.Exclude; params.FilterDescendantsInstances = {player.Character, targetChar}; local result = workspace:Raycast(workspace.CurrentCamera.CFrame.Position, targetChar.Head.Position - workspace.CurrentCamera.CFrame.Position, params); return result == nil end
 
 runService.RenderStepped:Connect(function()
@@ -204,7 +231,14 @@ runService.RenderStepped:Connect(function()
                 end
             end
         end
-        if AimSettings.LockedTarget then local cam = workspace.CurrentCamera; cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(cam.CFrame.Position, AimSettings.LockedTarget.Character.Head.Position), AimSettings.Sens) end
+        if AimSettings.LockedTarget then 
+            local head = AimSettings.LockedTarget.Character.Head
+            local hrp = AimSettings.LockedTarget.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local prediction = hrp.AssemblyLinearVelocity * AimSettings.Pred
+                workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, head.Position + prediction), AimSettings.Sens)
+            end
+        end
     end
 end)
 
@@ -217,5 +251,6 @@ end)
 -----------------------------------------------------------
 -- КНОПКА СВЕРНУТЬ (M)
 -----------------------------------------------------------
-local minBtn = Instance.new("TextButton", screenGui); minBtn.Size = UDim2.new(0, 35, 0, 35); minBtn.Position = UDim2.new(0, 10, 0, 10); minBtn.Text = "M"; minBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255); minBtn.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", minBtn).CornerRadius = UDim.new(1, 0)
+local minBtn = Instance.new("TextButton", screenGui); minBtn.Size = UDim2.new(0, 35, 0, 35); minBtn.Position = UDim2.new(0, 10, 0, 10)
+minBtn.Text = "M"; minBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255); minBtn.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", minBtn).CornerRadius = UDim.new(1, 0)
 minBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
