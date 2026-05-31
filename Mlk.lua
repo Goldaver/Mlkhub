@@ -29,13 +29,15 @@ contentFrame.Position = UDim2.new(0, 105, 0, 5)
 contentFrame.BackgroundTransparency = 1
 
 local tabs = {}
-local tabButtons = {"Visuals", "Scripts", "Combat"}
+local tabButtons = {"Visuals", "Scripts", "Combat", "Settings"}
 
 local function showTab(name)
     for tabName, frame in pairs(tabs) do
         frame.Visible = (tabName == name)
     end
 end
+
+local MenuButtons = {}
 
 for i, name in ipairs(tabButtons) do
     local btn = Instance.new("TextButton", sideBar)
@@ -68,6 +70,7 @@ local function CreateButton(btnName, tabParent, scriptCode)
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.Gotham
     btn.MouseButton1Click:Connect(function() scriptCode(btn) end)
+    MenuButtons[btnName] = {Instance = btn, Callback = scriptCode}
     return btn
 end
 
@@ -130,8 +133,6 @@ game.Players.PlayerAdded:Connect(createESP)
 -----------------------------------------------------------
 -- РАЗДЕЛ [ SCRIPTS ]
 -----------------------------------------------------------
-
--- SPEED
 local currentSpeed = 50; local speedEnabled = false; local velocityForce = Instance.new("BodyVelocity"); velocityForce.MaxForce = Vector3.new(1e7, 0, 1e7)
 CreateButton("SPEED: OFF", "Scripts", function(self)
     speedEnabled = not speedEnabled
@@ -139,8 +140,10 @@ CreateButton("SPEED: OFF", "Scripts", function(self)
     self.BackgroundColor3 = speedEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
     if not speedEnabled then velocityForce.Parent = nil end
 end)
+
 local speedInput = Instance.new("TextBox", tabs["Scripts"]); speedInput.Size = UDim2.new(0.9, 0, 0, 35); speedInput.Text = "50"; speedInput.BackgroundColor3 = Color3.fromRGB(10, 10, 10); speedInput.TextColor3 = Color3.fromRGB(0, 255, 150); speedInput.Font = Enum.Font.Code
 speedInput.FocusLost:Connect(function() local val = tonumber(speedInput.Text); if val then currentSpeed = val else speedInput.Text = tostring(currentSpeed) end end)
+
 runService.RenderStepped:Connect(function()
     local char = player.Character
     if speedEnabled and char and char:FindFirstChild("HumanoidRootPart") then
@@ -150,7 +153,6 @@ runService.RenderStepped:Connect(function()
     end
 end)
 
--- FLY
 local flying = false; local fv, fg
 local function cleanFly()
     flying = false
@@ -185,7 +187,6 @@ CreateButton("FLY: OFF", "Scripts", function(self)
     else cleanFly() end
 end)
 
--- NOCLIP
 local noclipEnabled = false; local noclipConn
 CreateButton("NOCLIP: OFF", "Scripts", function(self)
     noclipEnabled = not noclipEnabled
@@ -199,7 +200,6 @@ CreateButton("NOCLIP: OFF", "Scripts", function(self)
     end
 end)
 
--- INF JUMP
 local InfJump = false
 CreateButton("INF JUMP: OFF", "Scripts", function(self)
     InfJump = not InfJump
@@ -208,7 +208,6 @@ CreateButton("INF JUMP: OFF", "Scripts", function(self)
 end)
 game:GetService("UserInputService").JumpRequest:Connect(function() if InfJump then player.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Jumping") end end)
 
--- SLOW FALL
 local sfActive = false
 local sfLoop = nil
 local function applySlowFall()
@@ -223,7 +222,6 @@ CreateButton("Slow Fall", "Scripts", function(self)
     if sfActive then sfLoop = runService.RenderStepped:Connect(applySlowFall) else if sfLoop then sfLoop:Disconnect() sfLoop = nil end end
 end)
 
--- TP POS
 local tpGui = Instance.new("ScreenGui", game:GetService("CoreGui")); tpGui.Enabled = false
 local tpFrame = Instance.new("Frame", tpGui); tpFrame.Size = UDim2.new(0, 160, 0, 90); tpFrame.Position = UDim2.new(0.5, -80, 0.5, -45); tpFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35); tpFrame.Active = true; tpFrame.Draggable = true
 Instance.new("UICorner", tpFrame)
@@ -258,15 +256,13 @@ end)
 -----------------------------------------------------------
 -- РАЗДЕЛ [ COMBAT ]
 -----------------------------------------------------------
-
--- ОКНО НАСТРОЙКИ ХИТБОКСА (СОЗДАЕТСЯ ОДИН РАЗ И СКРЫВАЕТСЯ)
 local hitboxGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 hitboxGui.Name = "HitboxSettingsMenu"
 hitboxGui.Enabled = false
 
 local hFrame = Instance.new("Frame", hitboxGui)
 hFrame.Size = UDim2.new(0, 180, 0, 120)
-hFrame.Position = UDim2.new(0.5, 230, 0.4, -60) -- Появляется аккуратно справа от главного меню
+hFrame.Position = UDim2.new(0.5, 230, 0.4, -60)
 hFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 hFrame.Active = true; hFrame.Draggable = true
 Instance.new("UICorner", hFrame).CornerRadius = UDim.new(0, 10)
@@ -292,15 +288,13 @@ hInput.FocusLost:Connect(function()
     if num then _G.HeadSize = num else hInput.Text = tostring(_G.HeadSize) end
 end)
 
--- КНОПКА В КАНАЛЕ COMBAT
 CreateButton("HITBOX: OFF", "Combat", function(self)
     _G.HitboxEnabled = not _G.HitboxEnabled
     self.Text = _G.HitboxEnabled and "HITBOX: ON" or "HITBOX: OFF"
     self.BackgroundColor3 = _G.HitboxEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
-    hitboxGui.Enabled = _G.HitboxEnabled -- Открываем/закрываем меню ввода вместе с кнопкой
+    hitboxGui.Enabled = _G.HitboxEnabled
 end)
 
--- ПОСТОЯННЫЙ ЦИКЛ ОРАБОТКИ ХИТБОКСОВ
 task.spawn(function()
     while true do
         task.wait(0.2)
@@ -328,7 +322,6 @@ task.spawn(function()
     end
 end)
 
--- ВОССТАНОВЛЕННЫЙ AIMBOT С ТВОЕЙ КАМЕРОЙ
 local AimSettings = { Aimbot = false, WallCheck = true, Sens = 1, Pred = 0, LockedTarget = nil }
 local AimGui = Instance.new("ScreenGui", game:GetService("CoreGui")); AimGui.Enabled = false
 
@@ -379,12 +372,94 @@ CreateButton("AIMBOT: OFF", "Combat", function(self)
 end)
 
 -----------------------------------------------------------
+-- РАЗДЕЛ [ SETTINGS ] (С АВТОЗАГРУЗКОЙ)
+-----------------------------------------------------------
+local HttpService = game:GetService("HttpService")
+local fileName = "MyHubConfig.json"
+
+local function SaveConfig()
+    local config = {
+        Esp = _G.EspEnabled,
+        Stretched = StretchedActive,
+        SpeedEnabled = speedEnabled,
+        SpeedValue = currentSpeed,
+        Fly = flying,
+        Noclip = noclipEnabled,
+        InfJump = InfJump,
+        SlowFall = sfActive,
+        Hitbox = _G.HitboxEnabled,
+        HitboxSize = _G.HeadSize,
+        AimbotGui = AimGui.Enabled
+    }
+    local success, err = pcall(function()
+        writefile(fileName, HttpService:JSONEncode(config))
+    end)
+    return success
+end
+
+local function LoadConfig()
+    if not isfile(fileName) then return end
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(readfile(fileName))
+    end)
+    
+    if success and data then
+        if data.Esp ~= _G.EspEnabled then MenuButtons["ESP"].Callback(MenuButtons["ESP"].Instance) end
+        if data.Stretched ~= StretchedActive then MenuButtons["Stretched"].Callback(MenuButtons["Stretched"].Instance) end
+        if data.SpeedEnabled ~= speedEnabled then MenuButtons["SPEED: OFF"].Callback(MenuButtons["SPEED: OFF"].Instance) end
+        if data.Fly ~= flying then MenuButtons["FLY: OFF"].Callback(MenuButtons["FLY: OFF"].Instance) end
+        if data.Noclip ~= noclipEnabled then MenuButtons["NOCLIP: OFF"].Callback(MenuButtons["NOCLIP: OFF"].Instance) end
+        if data.InfJump ~= InfJump then MenuButtons["INF JUMP: OFF"].Callback(MenuButtons["INF JUMP: OFF"].Instance) end
+        if data.SlowFall ~= sfActive then MenuButtons["Slow Fall"].Callback(MenuButtons["Slow Fall"].Instance) end
+        if data.Hitbox ~= _G.HitboxEnabled then MenuButtons["HITBOX: OFF"].Callback(MenuButtons["HITBOX: OFF"].Instance) end
+        if data.AimbotGui ~= AimGui.Enabled then MenuButtons["AIMBOT: OFF"].Callback(MenuButtons["AIMBOT: OFF"].Instance) end
+        
+        currentSpeed = data.SpeedValue or 50
+        speedInput.Text = tostring(currentSpeed)
+        _G.HeadSize = data.HitboxSize or 25
+        hInput.Text = tostring(_G.HeadSize)
+    end
+end
+
+local function ResetConfig()
+    if _G.EspEnabled then MenuButtons["ESP"].Callback(MenuButtons["ESP"].Instance) end
+    if StretchedActive then MenuButtons["Stretched"].Callback(MenuButtons["Stretched"].Instance) end
+    if speedEnabled then MenuButtons["SPEED: OFF"].Callback(MenuButtons["SPEED: OFF"].Instance) end
+    if flying then MenuButtons["FLY: OFF"].Callback(MenuButtons["FLY: OFF"].Instance) end
+    if noclipEnabled then MenuButtons["NOCLIP: OFF"].Callback(MenuButtons["NOCLIP: OFF"].Instance) end
+    if InfJump then MenuButtons["INF JUMP: OFF"].Callback(MenuButtons["INF JUMP: OFF"].Instance) end
+    if sfActive then MenuButtons["Slow Fall"].Callback(MenuButtons["Slow Fall"].Instance) end
+    if _G.HitboxEnabled then MenuButtons["HITBOX: OFF"].Callback(MenuButtons["HITBOX: OFF"].Instance) end
+    if AimGui.Enabled then MenuButtons["AIMBOT: OFF"].Callback(MenuButtons["AIMBOT: OFF"].Instance) end
+    
+    currentSpeed = 50; speedInput.Text = "50"
+    _G.HeadSize = 25; hInput.Text = "25"
+end
+
+CreateButton("Save", "Settings", function(self)
+    if SaveConfig() then self.Text = "Saved!"; task.wait(0.8); self.Text = "Save" end
+end)
+
+CreateButton("Load", "Settings", function(self)
+    LoadConfig(); self.Text = "Loaded!"; task.wait(0.8); self.Text = "Load"
+end)
+
+CreateButton("Reset", "Settings", function(self)
+    ResetConfig(); self.Text = "Reset!"; task.wait(0.8); self.Text = "Reset"
+end)
+
+-- АВТОЗАГРУЗКА ПРИ ИНЖЕКТЕ
+task.spawn(function()
+    task.wait(0.5)
+    LoadConfig()
+end)
+
+-----------------------------------------------------------
 -- КНОПКА СВЕРНУТЬ (M)
 -----------------------------------------------------------
 local minBtn = Instance.new("TextButton", screenGui); minBtn.Size = UDim2.new(0, 35, 0, 35); minBtn.Position = UDim2.new(0, 10, 0, 10); minBtn.Text = "M"
 minBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255); minBtn.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", minBtn).CornerRadius = UDim.new(1,0)
 minBtn.MouseButton1Click:Connect(function() 
     mainFrame.Visible = not mainFrame.Visible 
-    -- Если хаб скрывают, скрываем и настройки хитбокса, чтобы не висели в воздухе
     if not mainFrame.Visible then hitboxGui.Enabled = false elseif _G.HitboxEnabled then hitboxGui.Enabled = true end
 end)
