@@ -253,6 +253,110 @@ CreateButton("TP POS: OFF", "Scripts", function(self)
     self.BackgroundColor3 = tpGui.Enabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
 end)
 
+-- КНОПКА PING (ПИНГ-ПРИЗРАК)
+local pingActive = false
+local positionHistory = {}
+local ghostModel = nil
+local ghostParts = {}
+local pingConnection = nil
+local characterAddedConnection = nil
+
+local function createGhostPart(part)
+    if not part:IsA("BasePart") or part.Name == "HumanoidRootPart" then return nil end
+    local clone = Instance.new("Part")
+    clone.Size = part.Size
+    clone.Color = Color3.fromRGB(255, 255, 255)
+    clone.Material = Enum.Material.Neon
+    clone.Transparency = 0.6
+    clone.Anchored = true
+    clone.CanCollide = false
+    clone.CanTouch = false
+    clone.CanQuery = false
+    clone.Parent = ghostModel
+    for _, child in ipairs(part:GetChildren()) do
+        if child:IsA("SpecialMesh") or child:IsA("MeshPart") then
+            local meshClone = child:Clone()
+            meshClone.Parent = clone
+        end
+    end
+    return clone
+end
+
+local function setupGhost(character)
+    ghostParts = {}
+    if ghostModel then ghostModel:ClearAllChildren() end
+    if not character then return end
+    for _, child in ipairs(character:GetChildren()) do
+        local ghostPart = createGhostPart(child)
+        if ghostPart then
+            ghostParts[child.Name] = ghostPart
+        end
+    end
+end
+
+local function cleanPingGhost()
+    if pingConnection then pingConnection:Disconnect() pingConnection = nil end
+    if characterAddedConnection then characterAddedConnection:Disconnect() characterAddedConnection = nil end
+    if ghostModel then ghostModel:Destroy() ghostModel = nil end
+    if _G.PingGhostVisualizer then _G.PingGhostVisualizer:Destroy() _G.PingGhostVisualizer = nil end
+    positionHistory = {}
+    ghostParts = {}
+end
+
+CreateButton("PING: OFF", "Scripts", function(self)
+    pingActive = not pingActive
+    self.Text = pingActive and "PING: ON" or "PING: OFF"
+    self.BackgroundColor3 = pingActive and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
+    
+    if pingActive then
+        if _G.PingGhostVisualizer then _G.PingGhostVisualizer:Destroy() end
+        ghostModel = Instance.new("Model")
+        ghostModel.Name = "VisualizerGhost"
+        ghostModel.Parent = workspace
+        _G.PingGhostVisualizer = ghostModel
+        
+        if player.Character then setupGhost(player.Character) end
+        
+        characterAddedConnection = player.CharacterAdded:Connect(function(char)
+            task.wait(0.5)
+            if pingActive then setupGhost(char) end
+        end)
+        
+        pingConnection = runService.Heartbeat:Connect(function()
+            local character = player.Character
+            if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+            
+            local currentTime = os.clock()
+            local ping = player:GetNetworkPing()
+            
+            local currentFrame = { time = currentTime, positions = {} }
+            for partName, _ in pairs(ghostParts) do
+                local realPart = character:FindFirstChild(partName)
+                if realPart then currentFrame.positions[partName] = realPart.CFrame end
+            end
+            table.insert(positionHistory, currentFrame)
+            
+            local targetTime = currentTime - ping
+            local targetFrame = nil
+            while #positionHistory > 0 and positionHistory[1].time < targetTime do
+                targetFrame = table.remove(positionHistory, 1)
+            end
+            
+            if targetFrame then
+                local TweenService = game:GetService("TweenService")
+                for partName, ghostPart in pairs(ghostParts) do
+                    local savedCFrame = targetFrame.positions[partName]
+                    if savedCFrame and ghostPart.Parent then
+                        TweenService:Create(ghostPart, TweenInfo.new(0.03, Enum.EasingStyle.Linear), {CFrame = savedCFrame}):Play()
+                    end
+                end
+            end
+        end)
+    else
+        cleanPingGhost()
+    end
+end)
+
 -----------------------------------------------------------
 -- РАЗДЕЛ [ COMBAT ]
 -----------------------------------------------------------
