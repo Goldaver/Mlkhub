@@ -357,6 +357,130 @@ CreateButton("PING: OFF", "Scripts", function(self)
     end
 end)
 
+-- КНОПКА TPUP
+local tpupActive = false
+local tpDistance = 15
+local tpupVisuals = nil
+local tpupHUD = nil
+local tpupHeartbeat = nil
+
+local function cleanTPUP()
+    if tpupHeartbeat then tpupHeartbeat:Disconnect() tpupHeartbeat = nil end
+    if tpupVisuals then tpupVisuals:Destroy() tpupVisuals = nil end
+    if _G.TargetVisuals then _G.TargetVisuals:Destroy() _G.TargetVisuals = nil end
+    if tpupHUD then tpupHUD:Destroy() tpupHUD = nil end
+end
+
+CreateButton("TPUP: OFF", "Scripts", function(self)
+    tpupActive = not tpupActive
+    self.Text = tpupActive and "TPUP: ON" or "TPUP: OFF"
+    self.BackgroundColor3 = tpupActive and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
+    
+    if tpupActive then
+        if _G.TargetVisuals then _G.TargetVisuals:Destroy() end
+        tpupVisuals = Instance.new("Folder", workspace)
+        tpupVisuals.Name = "TP_Visuals"
+        _G.TargetVisuals = tpupVisuals
+        
+        local TargetCircle = Instance.new("Part", tpupVisuals)
+        TargetCircle.Size = Vector3.new(3, 0.05, 3)
+        TargetCircle.Shape = Enum.PartType.Cylinder
+        TargetCircle.Rotation = Vector3.new(0, 0, 90)
+        TargetCircle.Color = Color3.fromRGB(0, 255, 200)
+        TargetCircle.Material = Enum.Material.Neon
+        TargetCircle.Transparency = 0.4
+        TargetCircle.Anchored = true
+        TargetCircle.CanCollide = false
+        
+        local LaserAttachment0 = Instance.new("Attachment")
+        local LaserAttachment1 = Instance.new("Attachment")
+        local LaserBeam = Instance.new("Beam", tpupVisuals)
+        LaserBeam.Width0 = 0.08; LaserBeam.Width1 = 0.08
+        LaserBeam.Color = ColorSequence.new(Color3.fromRGB(0, 255, 200))
+        LaserBeam.Transparency = NumberSequence.new(0.3)
+        LaserBeam.FaceCamera = true
+        LaserBeam.Attachment0 = LaserAttachment0; LaserBeam.Attachment1 = LaserAttachment1
+        
+        tpupHeartbeat = runService.Heartbeat:Connect(function()
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local raycastParams = RaycastParams.new()
+                raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+                raycastParams.FilterDescendantsInstances = {char, tpupVisuals}
+                local raycastResult = workspace:Raycast(root.Position, Vector3.new(0, -500, 0), raycastParams)
+                if raycastResult then
+                    TargetCircle.Transparency = 0.4; LaserBeam.Enabled = true
+                    TargetCircle.Position = raycastResult.Position + Vector3.new(0, 0.02, 0)
+                    if LaserAttachment0.Parent ~= root then LaserAttachment0.Parent = root end
+                    if LaserAttachment1.Parent ~= TargetCircle then LaserAttachment1.Parent = TargetCircle end
+                    LaserAttachment0.Position = Vector3.new(0, -2.8, 0)
+                    LaserAttachment1.Position = Vector3.new(0, 0, 0)
+                    return
+                end
+            end
+            TargetCircle.Transparency = 1; LaserBeam.Enabled = false
+        end)
+        
+        tpupHUD = Instance.new("ScreenGui")
+        tpupHUD.Name = "MiniTP_HUD"
+        tpupHUD.ResetOnSpawn = false
+        pcall(function() tpupHUD.Parent = game:GetService("CoreGui") end)
+        if not tpupHUD.Parent then tpupHUD.Parent = player:WaitForChild("PlayerGui") end
+        
+        local HUDFrame = Instance.new("Frame", tpupHUD)
+        HUDFrame.Size = UDim2.new(0, 130, 0, 45)
+        HUDFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
+        HUDFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+        HUDFrame.BorderSizePixel = 0; HUDFrame.Active = true; HUDFrame.Draggable = true
+        Instance.new("UICorner", HUDFrame).CornerRadius = UDim.new(0, 8)
+        
+        local function styleButton(btn, text, color)
+            btn.Font = Enum.Font.GothamBold; btn.TextSize = 16; btn.Text = text
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255); btn.BackgroundColor3 = color; btn.BorderSizePixel = 0
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        end
+        
+        local UpBtn = Instance.new("TextButton", HUDFrame); UpBtn.Size = UDim2.new(0, 35, 0, 35); UpBtn.Position = UDim2.new(0, 5, 0, 5)
+        styleButton(UpBtn, "▲", Color3.fromRGB(0, 160, 100))
+        
+        local DownBtn = Instance.new("TextButton", HUDFrame); DownBtn.Size = UDim2.new(0, 35, 0, 35); DownBtn.Position = UDim2.new(0, 45, 0, 5)
+        styleButton(DownBtn, "▼", Color3.fromRGB(180, 35, 55))
+        
+        local MenuBtn = Instance.new("TextButton", HUDFrame); MenuBtn.Size = UDim2.new(0, 35, 0, 35); MenuBtn.Position = UDim2.new(0, 85, 0, 5)
+        styleButton(MenuBtn, "•••", Color3.fromRGB(45, 45, 55)); MenuBtn.TextSize = 10
+        
+        local DropdownFrame = Instance.new("Frame", HUDFrame); DropdownFrame.Size = UDim2.new(0, 70, 0, 130); DropdownFrame.Position = UDim2.new(0, 85, 0, 45)
+        DropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35); DropdownFrame.BorderSizePixel = 0; DropdownFrame.Visible = false
+        Instance.new("UICorner", DropdownFrame).CornerRadius = UDim.new(0, 6)
+        
+        local distances = {15, 30, 50, 100}
+        for i, dist in ipairs(distances) do
+            local dBtn = Instance.new("TextButton", DropdownFrame); dBtn.Size = UDim2.new(1, -6, 0, 25); dBtn.Position = UDim2.new(0, 3, 0, 4 + (i-1) * 28)
+            dBtn.Font = Enum.Font.GothamMedium; dBtn.TextSize = 12; dBtn.Text = tostring(dist) .. " st"; dBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            dBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 48); dBtn.BorderSizePixel = 0
+            Instance.new("UICorner", dBtn).CornerRadius = UDim.new(0, 4)
+            dBtn.MouseButton1Click:Connect(function()
+                tpDistance = dist; MenuBtn.Text = tostring(dist); MenuBtn.TextSize = 11; DropdownFrame.Visible = false
+            end)
+        end
+        
+        MenuBtn.MouseButton1Click:Connect(function() DropdownFrame.Visible = not DropdownFrame.Visible end)
+        UpBtn.MouseButton1Click:Connect(function()
+            local char = player.Character; local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then root.CFrame = root.CFrame * CFrame.new(0, tpDistance, 0) end
+        end)
+        DownBtn.MouseButton1Click:Connect(function()
+            local char = player.Character; local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root and TargetCircle.Transparency < 1 then
+                root.CFrame = CFrame.new(root.Position.X, TargetCircle.Position.Y + 3, root.Position.Z)
+            end
+        end)
+    else
+        cleanTPUP()
+    end
+end)
+
 -----------------------------------------------------------
 -- РАЗДЕЛ [ COMBAT ]
 -----------------------------------------------------------
