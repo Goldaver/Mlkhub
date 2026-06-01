@@ -134,7 +134,7 @@ game.Players.PlayerAdded:Connect(createESP)
 -- РАЗДЕЛ [ SCRIPTS ]
 -----------------------------------------------------------
 local currentSpeed = 50; local speedEnabled = false; local velocityForce = Instance.new("BodyVelocity"); velocityForce.MaxForce = Vector3.new(1e7, 0, 1e7)
-CreateButton("SPEED: OFF", "Scripts", function(self)
+CreateButton("Speed", "Scripts", function(self)
     speedEnabled = not speedEnabled
     self.Text = speedEnabled and "SPEED: ON" or "SPEED: OFF"
     self.BackgroundColor3 = speedEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
@@ -161,7 +161,7 @@ local function cleanFly()
     if fg then fg:Destroy() fg = nil end
     if fv then fv:Destroy() fv = nil end
 end
-CreateButton("FLY: OFF", "Scripts", function(self)
+CreateButton("Fly", "Scripts", function(self)
     flying = not flying
     self.Text = flying and "FLY: ON" or "FLY: OFF"
     self.BackgroundColor3 = flying and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
@@ -188,7 +188,7 @@ CreateButton("FLY: OFF", "Scripts", function(self)
 end)
 
 local noclipEnabled = false; local noclipConn
-CreateButton("NOCLIP: OFF", "Scripts", function(self)
+CreateButton("Noclip", "Scripts", function(self)
     noclipEnabled = not noclipEnabled
     self.Text = noclipEnabled and "NOCLIP: ON" or "NOCLIP: OFF"
     self.BackgroundColor3 = noclipEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
@@ -201,13 +201,14 @@ CreateButton("NOCLIP: OFF", "Scripts", function(self)
 end)
 
 local InfJump = false
-CreateButton("INF JUMP: OFF", "Scripts", function(self)
+CreateButton("Inf Jump", "Scripts", function(self)
     InfJump = not InfJump
     self.Text = InfJump and "INF JUMP: ON" or "INF JUMP: OFF"
     self.BackgroundColor3 = InfJump and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
 end)
 game:GetService("UserInputService").JumpRequest:Connect(function() if InfJump then player.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Jumping") end end)
 
+-- МЕДЛЕННОЕ ПАДЕНИЕ (SLOW FALL)
 local sfActive = false
 local sfLoop = nil
 local function applySlowFall()
@@ -220,6 +221,21 @@ CreateButton("Slow Fall", "Scripts", function(self)
     self.Text = sfActive and "SLOW FALL: ON" or "SLOW FALL: OFF"
     self.BackgroundColor3 = sfActive and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
     if sfActive then sfLoop = runService.RenderStepped:Connect(applySlowFall) else if sfLoop then sfLoop:Disconnect() sfLoop = nil end end
+end)
+
+-- ЗАВИСАНИЕ В ВОЗДУХЕ (FLOAT)
+local floatActive = false
+local floatLoop = nil
+local function applyFloat()
+	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+	local hrp = player.Character.HumanoidRootPart
+	hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+end
+CreateButton("Float", "Scripts", function(self)
+    floatActive = not floatActive
+    self.Text = floatActive and "FLOAT: ON" or "FLOAT: OFF"
+    self.BackgroundColor3 = floatActive and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
+    if floatActive then floatLoop = runService.RenderStepped:Connect(applyFloat) else if floatLoop then floatLoop:Disconnect() floatLoop = nil end end
 end)
 
 local tpGui = Instance.new("ScreenGui", game:GetService("CoreGui")); tpGui.Enabled = false
@@ -247,7 +263,7 @@ end
 t1.MouseButton1Down:Connect(function() if loop1 then loop1 = false; t1.Text = "TP 1" else tpHandler(t1, saved1, "1") end end)
 t2.MouseButton1Down:Connect(function() if loop2 then loop2 = false; t2.Text = "TP 2" else tpHandler(t2, saved2, "2") end end)
 
-CreateButton("TP POS: OFF", "Scripts", function(self)
+CreateButton("TP Pos", "Scripts", function(self)
     tpGui.Enabled = not tpGui.Enabled
     self.Text = tpGui.Enabled and "TP POS: ON" or "TP POS: OFF"
     self.BackgroundColor3 = tpGui.Enabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
@@ -303,7 +319,7 @@ local function cleanPingGhost()
     ghostParts = {}
 end
 
-CreateButton("PING: OFF", "Scripts", function(self)
+CreateButton("Ping", "Scripts", function(self)
     pingActive = not pingActive
     self.Text = pingActive and "PING: ON" or "PING: OFF"
     self.BackgroundColor3 = pingActive and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
@@ -371,7 +387,7 @@ local function cleanTPUP()
     if tpupHUD then tpupHUD:Destroy() tpupHUD = nil end
 end
 
-CreateButton("TPUP: OFF", "Scripts", function(self)
+CreateButton("TPUP", "Scripts", function(self)
     tpupActive = not tpupActive
     self.Text = tpupActive and "TPUP: ON" or "TPUP: OFF"
     self.BackgroundColor3 = tpupActive and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
@@ -516,7 +532,7 @@ hInput.FocusLost:Connect(function()
     if num then _G.HeadSize = num else hInput.Text = tostring(_G.HeadSize) end
 end)
 
-CreateButton("HITBOX: OFF", "Combat", function(self)
+CreateButton("Hitbox", "Combat", function(self)
     _G.HitboxEnabled = not _G.HitboxEnabled
     self.Text = _G.HitboxEnabled and "HITBOX: ON" or "HITBOX: OFF"
     self.BackgroundColor3 = _G.HitboxEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
@@ -593,10 +609,140 @@ runService.RenderStepped:Connect(function()
     end
 end)
 
-CreateButton("AIMBOT: OFF", "Combat", function(self)
+CreateButton("Aimbot", "Combat", function(self)
     AimGui.Enabled = not AimGui.Enabled
     self.Text = AimGui.Enabled and "AIMBOT: ON" or "AIMBOT: OFF"
     self.BackgroundColor3 = AimGui.Enabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
+end)
+
+-- ИНИЦИАЛИЗАЦИЯ И НАСТРОЙКА KILLAURA
+_G.Config = {
+	Enabled = false,
+	Targets = { Guardians = true, Titans = true, Players = true, Dummies = true, Ducks = true, Chickens = true },
+	Weapons = {
+        "wood_scythe", "stone_scythe", "iron_scythe", "diamond_scythe", "mythic_scythe",
+        "wood_great_hammer", "stone_great_hammer", "iron_great_hammer", "diamond_great_hammer", "mythic_great_hammer",
+        "wood_dagger", "stone_dagger", "iron_dagger", "diamond_dagger", "mythic_dagger",
+        "wood_gauntlets", "stone_gauntlets", "iron_gauntlets", "diamond_gauntlets", "mythic_gauntlets",
+        "noctium_blade", "noctium_blade_2", "noctium_blade_3", "noctium_blade_4",
+		"wood_dao", "stone_dao", "iron_dao", "diamond_dao", "emerald_dao",
+		"wood_gun_blade", "stone_gun_blade", "iron_gun_blade", "diamond_gun_blade", "emerald_gun_blade",
+		"summoner_claw_1", "summoner_claw_2", "summoner_claw_3", "summoner_claw_4",
+		"wood_sword", "stone_sword", "iron_sword", "diamond_sword", "emerald_sword",
+        "laser_sword", "guards_spear", "mass_hammer", "baguette", "void_sword",
+        "tinkers_wrench", "rageblade", "ice_sword", "frosty_hammer", "wizard_stick", "light_sword",
+	}
+}
+
+local SUMMONER_CLAWS = { summoner_claw_1 = true, summoner_claw_2 = true, summoner_claw_3 = true, summoner_claw_4 = true }
+local Guardians, Titans, Dummies, Ducks, Chickens = {}, {}, {}, {}, {}
+
+local function classify(model)
+	if not model:IsA("Model") then return end
+	if model.Name == "Diamond Guardian" then table.insert(Guardians, model)
+	elseif model.Name == "Titan" then table.insert(Titans, model)
+	elseif model.Name:find("Dummy") then table.insert(Dummies, model)
+	elseif model.Name == "Duck" then table.insert(Ducks, model)
+	elseif model.Name == "Chicken" then table.insert(Chickens, model) end
+end
+
+local function removeFrom(tbl, model)
+	for i, v in ipairs(tbl) do if v == model then table.remove(tbl, i) break end end
+end
+
+for _, obj in ipairs(workspace:GetChildren()) do classify(obj) end
+workspace.ChildAdded:Connect(classify)
+workspace.ChildRemoved:Connect(function(obj)
+	removeFrom(Guardians, obj) removeFrom(Titans, obj)
+	removeFrom(Dummies, obj)   removeFrom(Ducks, obj)
+	removeFrom(Chickens, obj)
+end)
+
+local function getRoot(model) return model:FindFirstChild("HumanoidRootPart") or model.PrimaryPart end
+
+local function getClosestTarget()
+	local myChar = player.Character; local myRoot = myChar and getRoot(myChar)
+	if not myRoot then return nil end
+	local myPos = myRoot.Position; local closest, shortest = nil, math.huge; local cfg = _G.Config.Targets
+	local function check(char)
+		local root = getRoot(char)
+		if root then local dist = (root.Position - myPos).Magnitude; if dist < shortest then shortest = dist; closest = char end end
+	end
+	if cfg.Players then for _, p in ipairs(game.Players:GetPlayers()) do if p ~= player and p.Character then check(p.Character) end end end
+	if cfg.Guardians then for _, g in ipairs(Guardians) do check(g) end end
+	if cfg.Titans then for _, t in ipairs(Titans) do check(t) end end
+	if cfg.Dummies then for _, d in ipairs(Dummies) do check(d) end end
+	if cfg.Ducks then for _, d in ipairs(Ducks) do check(d) end end
+	if cfg.Chickens then for _, c in ipairs(Chickens) do check(c) end end
+	return closest
+end
+
+local function getWeapon()
+	local myChar = player.Character; if not myChar then return nil end
+	local weaponsSet = {}; for _, name in ipairs(_G.Config.Weapons) do weaponsSet[name] = true end
+	local equippedAccessory = nil
+	for _, child in ipairs(myChar:GetChildren()) do if child:IsA("Accessory") and weaponsSet[child.Name] then equippedAccessory = child; break end end
+	if not equippedAccessory then return nil end
+	local weaponName = equippedAccessory.Name; local invFolder = game.ReplicatedStorage:FindFirstChild("Inventories")
+	if not invFolder then return nil end; local inv = invFolder:FindFirstChild(player.Name)
+	if not inv then return nil end
+	for _, item in ipairs(inv:GetChildren()) do if item.Name == weaponName then return item end end
+	return nil
+end
+
+local function getEquippedWeaponName()
+	local myChar = player.Character; if not myChar then return nil end
+	local weaponsSet = {}; for _, name in ipairs(_G.Config.Weapons) do weaponsSet[name] = true end
+	for _, child in ipairs(myChar:GetChildren()) do if child:IsA("Accessory") and weaponsSet[child.Name] then return child.Name end end
+	return nil
+end
+
+local function findRemote(name)
+	local netManaged = game.ReplicatedStorage:FindFirstChild("rbxts_include")
+		and game.ReplicatedStorage.rbxts_include:FindFirstChild("node_modules")
+		and game.ReplicatedStorage.rbxts_include.node_modules:FindFirstChild("@rbxts")
+		and game.ReplicatedStorage.rbxts_include.node_modules["@rbxts"]:FindFirstChild("net")
+		and game.ReplicatedStorage.rbxts_include.node_modules["@rbxts"].net:FindFirstChild("out")
+		and game.ReplicatedStorage.rbxts_include.node_modules["@rbxts"].net.out:FindFirstChild("_NetManaged")
+	if not netManaged then return nil end; return netManaged:FindFirstChild(name)
+end
+
+local SwordHit = findRemote("SwordHit")
+local SummonerClawRemote = findRemote("SummonerClawAttackRequest")
+
+local function attackSummonerClaw(myRoot, targetRoot)
+	if not SummonerClawRemote then return end
+	local direction = (targetRoot.Position - myRoot.Position).Unit
+	local args = {{ clientTime = tick(), direction = direction, position = myRoot.Position }}
+	pcall(function() SummonerClawRemote:FireServer(unpack(args)) end)
+end
+
+local function attackSword(target, weapon, myRoot, targetRoot)
+	if not SwordHit then return end
+	local args = { chargedAttack = { chargeRatio = 0 }, entityInstance = target, validate = { selfPosition = { value = myRoot.Position }, targetPosition = { value = targetRoot.Position } }, weapon = weapon }
+	pcall(function() SwordHit:FireServer(args) end)
+end
+
+local function attack()
+	local myChar = player.Character; if not myChar then return end
+	local myRoot = getRoot(myChar); if not myRoot then return end
+	local target = getClosestTarget(); if not target then return end
+	local targetRoot = getRoot(target); if not targetRoot then return end
+	local weaponName = getEquippedWeaponName(); if not weaponName then return end
+	if SUMMONER_CLAWS[weaponName] then attackSummonerClaw(myRoot, targetRoot) else local weapon = getWeapon(); if not weapon then return end attackSword(target, weapon, myRoot, targetRoot) end
+end
+
+task.spawn(function()
+	while true do
+		if _G.Config.Enabled then pcall(attack) end
+		task.wait(0.00001)
+	end
+end)
+
+CreateButton("KillAura", "Combat", function(self)
+    _G.Config.Enabled = not _G.Config.Enabled
+    self.Text = _G.Config.Enabled and "KILLAURA: ON" or "KILLAURA: OFF"
+    self.BackgroundColor3 = _G.Config.Enabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
 end)
 
 -----------------------------------------------------------
@@ -611,13 +757,17 @@ local function SaveConfig()
         Stretched = StretchedActive,
         SpeedEnabled = speedEnabled,
         SpeedValue = currentSpeed,
-        Fly = flying,
+        MemoryFly = flying,
         Noclip = noclipEnabled,
         InfJump = InfJump,
         SlowFall = sfActive,
+        FloatActive = floatActive, -- Добавлено в конфиг
         Hitbox = _G.HitboxEnabled,
         HitboxSize = _G.HeadSize,
-        AimbotGui = AimGui.Enabled
+        AimbotGui = AimGui.Enabled,
+        PingGhost = pingActive,
+        TPUPActive = tpupActive,
+        Killaura = _G.Config.Enabled
     }
     local success, err = pcall(function()
         writefile(fileName, HttpService:JSONEncode(config))
@@ -634,13 +784,17 @@ local function LoadConfig()
     if success and data then
         if data.Esp ~= _G.EspEnabled then MenuButtons["ESP"].Callback(MenuButtons["ESP"].Instance) end
         if data.Stretched ~= StretchedActive then MenuButtons["Stretched"].Callback(MenuButtons["Stretched"].Instance) end
-        if data.SpeedEnabled ~= speedEnabled then MenuButtons["SPEED: OFF"].Callback(MenuButtons["SPEED: OFF"].Instance) end
-        if data.Fly ~= flying then MenuButtons["FLY: OFF"].Callback(MenuButtons["FLY: OFF"].Instance) end
-        if data.Noclip ~= noclipEnabled then MenuButtons["NOCLIP: OFF"].Callback(MenuButtons["NOCLIP: OFF"].Instance) end
-        if data.InfJump ~= InfJump then MenuButtons["INF JUMP: OFF"].Callback(MenuButtons["INF JUMP: OFF"].Instance) end
+        if data.SpeedEnabled ~= speedEnabled then MenuButtons["Speed"].Callback(MenuButtons["Speed"].Instance) end
+        if data.MemoryFly ~= flying then MenuButtons["Fly"].Callback(MenuButtons["Fly"].Instance) end
+        if data.Noclip ~= noclipEnabled then MenuButtons["Noclip"].Callback(MenuButtons["Noclip"].Instance) end
+        if data.InfJump ~= InfJump then MenuButtons["Inf Jump"].Callback(MenuButtons["Inf Jump"].Instance) end
         if data.SlowFall ~= sfActive then MenuButtons["Slow Fall"].Callback(MenuButtons["Slow Fall"].Instance) end
-        if data.Hitbox ~= _G.HitboxEnabled then MenuButtons["HITBOX: OFF"].Callback(MenuButtons["HITBOX: OFF"].Instance) end
-        if data.AimbotGui ~= AimGui.Enabled then MenuButtons["AIMBOT: OFF"].Callback(MenuButtons["AIMBOT: OFF"].Instance) end
+        if data.FloatActive ~= floatActive then MenuButtons["Float"].Callback(MenuButtons["Float"].Instance) end -- Загрузка Float
+        if data.Hitbox ~= _G.HitboxEnabled then MenuButtons["Hitbox"].Callback(MenuButtons["Hitbox"].Instance) end
+        if data.AimbotGui ~= AimGui.Enabled then MenuButtons["Aimbot"].Callback(MenuButtons["Aimbot"].Instance) end
+        if data.PingGhost ~= pingActive then MenuButtons["Ping"].Callback(MenuButtons["Ping"].Instance) end
+        if data.TPUPActive ~= tpupActive then MenuButtons["TPUP"].Callback(MenuButtons["TPUP"].Instance) end
+        if data.Killaura ~= _G.Config.Enabled then MenuButtons["KillAura"].Callback(MenuButtons["KillAura"].Instance) end
         
         currentSpeed = data.SpeedValue or 50
         speedInput.Text = tostring(currentSpeed)
@@ -652,13 +806,17 @@ end
 local function ResetConfig()
     if _G.EspEnabled then MenuButtons["ESP"].Callback(MenuButtons["ESP"].Instance) end
     if StretchedActive then MenuButtons["Stretched"].Callback(MenuButtons["Stretched"].Instance) end
-    if speedEnabled then MenuButtons["SPEED: OFF"].Callback(MenuButtons["SPEED: OFF"].Instance) end
-    if flying then MenuButtons["FLY: OFF"].Callback(MenuButtons["FLY: OFF"].Instance) end
-    if noclipEnabled then MenuButtons["NOCLIP: OFF"].Callback(MenuButtons["NOCLIP: OFF"].Instance) end
-    if InfJump then MenuButtons["INF JUMP: OFF"].Callback(MenuButtons["INF JUMP: OFF"].Instance) end
+    if speedEnabled then MenuButtons["Speed"].Callback(MenuButtons["Speed"].Instance) end
+    if flying then MenuButtons["Fly"].Callback(MenuButtons["Fly"].Instance) end
+    if noclipEnabled then MenuButtons["Noclip"].Callback(MenuButtons["Noclip"].Instance) end
+    if InfJump then MenuButtons["Inf Jump"].Callback(MenuButtons["Inf Jump"].Instance) end
     if sfActive then MenuButtons["Slow Fall"].Callback(MenuButtons["Slow Fall"].Instance) end
-    if _G.HitboxEnabled then MenuButtons["HITBOX: OFF"].Callback(MenuButtons["HITBOX: OFF"].Instance) end
-    if AimGui.Enabled then MenuButtons["AIMBOT: OFF"].Callback(MenuButtons["AIMBOT: OFF"].Instance) end
+    if floatActive then MenuButtons["Float"].Callback(MenuButtons["Float"].Instance) end -- Сброс Float
+    if _G.HitboxEnabled then MenuButtons["Hitbox"].Callback(MenuButtons["Hitbox"].Instance) end
+    if AimGui.Enabled then MenuButtons["Aimbot"].Callback(MenuButtons["Aimbot"].Instance) end
+    if pingActive then MenuButtons["Ping"].Callback(MenuButtons["Ping"].Instance) end
+    if tpupActive then MenuButtons["TPUP"].Callback(MenuButtons["TPUP"].Instance) end
+    if _G.Config.Enabled then MenuButtons["KillAura"].Callback(MenuButtons["KillAura"].Instance) end
     
     currentSpeed = 50; speedInput.Text = "50"
     _G.HeadSize = 25; hInput.Text = "25"
