@@ -496,6 +496,400 @@ CreateButton("TPUP", "Scripts", function(self)
         cleanTPUP()
     end
 end)
+local flyBD_Active = false
+local flyBD_Gui_Created = false
+
+-- КНОПКА FLYBD
+CreateButton("flyBD", "Scripts", function(self)
+    if not game:IsLoaded() then game.Loaded:Wait() end
+    
+    flyBD_Active = not flyBD_Active
+    self.Text = flyBD_Active and "FLYBD: ON" or "FLYBD: OFF"
+    self.BackgroundColor3 = flyBD_Active and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(40, 40, 40)
+    
+    if not flyBD_Gui_Created then
+        flyBD_Gui_Created = true
+
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local TweenService = game:GetService("TweenService")
+        local LocalPlayer = Players.LocalPlayer
+
+        local isLooping = false 
+        local loopSession = 0 
+        local teleportStuds = 15 -- Высота по умолчанию
+        local flyDuration = 1.7  -- Длительность полёта по умолчанию (теперь настраиваемая)
+
+        ----------------------------------------
+        -- ВИЗУАЛЬНЫЙ ЛАЗЕР И КОЛЬЦО
+        ----------------------------------------
+        if _G.TargetVisuals then _G.TargetVisuals:Destroy() end
+        local VisualsContainer = Instance.new("Folder")
+        VisualsContainer.Name = "TP_Visuals_Loop"
+        VisualsContainer.Parent = workspace
+        _G.TargetVisuals = VisualsContainer
+
+        local TargetCircle = Instance.new("Part")
+        TargetCircle.Size = Vector3.new(3, 0.05, 3)
+        TargetCircle.Shape = Enum.PartType.Cylinder
+        TargetCircle.Rotation = Vector3.new(0, 0, 90)
+        TargetCircle.Color = Color3.fromRGB(0, 255, 200)
+        TargetCircle.Material = Enum.Material.Neon
+        TargetCircle.Transparency = 0.4
+        TargetCircle.Anchored = true
+        TargetCircle.CanCollide = false
+        TargetCircle.Parent = VisualsContainer
+
+        local LaserAttachment0 = Instance.new("Attachment")
+        local LaserAttachment1 = Instance.new("Attachment")
+        local LaserBeam = Instance.new("Beam")
+        LaserBeam.Width0 = 0.06
+        LaserBeam.Width1 = 0.06
+        LaserBeam.Color = ColorSequence.new(Color3.fromRGB(0, 255, 200))
+        LaserBeam.Transparency = NumberSequence.new(0.4)
+        LaserBeam.FaceCamera = true
+        LaserBeam.Attachment0 = LaserAttachment0
+        LaserBeam.Attachment1 = LaserAttachment1
+        LaserBeam.Parent = VisualsContainer
+
+        local function checkGround()
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local raycastParams = RaycastParams.new()
+                raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+                raycastParams.FilterDescendantsInstances = {char, VisualsContainer}
+                
+                return workspace:Raycast(root.Position, Vector3.new(0, -1000, 0), raycastParams)
+            end
+            return nil
+        end
+
+        RunService.Heartbeat:Connect(function()
+            local raycastResult = checkGround()
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            
+            if root and raycastResult then
+                TargetCircle.Transparency = 0.4
+                LaserBeam.Enabled = true
+                TargetCircle.Position = raycastResult.Position + Vector3.new(0, 0.02, 0)
+                
+                if LaserAttachment0.Parent ~= root then LaserAttachment0.Parent = root end
+                if LaserAttachment1.Parent ~= TargetCircle then LaserAttachment1.Parent = TargetCircle end
+                LaserAttachment0.Position = Vector3.new(0, -2.8, 0)
+                LaserAttachment1.Position = Vector3.new(0, 0, 0)
+            else
+                TargetCircle.Transparency = 1
+                LaserBeam.Enabled = false
+            end
+        end)
+
+        ----------------------------------------
+        -- ФУНКЦИИ ТЕЛЕПОРТАЦИИ
+        ----------------------------------------
+        local function teleportUp(studs)
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                root.CFrame = root.CFrame * CFrame.new(0, studs, 0)
+            end
+        end
+
+        local function teleportDown(raycastResult)
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+            
+            if root and raycastResult then
+                root.CFrame = CFrame.new(root.Position.X, raycastResult.Position.Y + 2.6, root.Position.Z)
+                root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                if humanoid then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Landed)
+                end
+            end
+        end
+
+        ----------------------------------------
+        -- ИНТЕРФЕЙС (КНОПКА И ДВУХПАНЕЛЬНОЕ МЕНЮ)
+        ----------------------------------------
+        local ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Name = "LoopTP_HUD_Fixed"
+        ScreenGui.ResetOnSpawn = false
+        pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
+        if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+        local ToggleBtn = Instance.new("TextButton")
+        ToggleBtn.Size = UDim2.new(0, 110, 0, 35)
+        ToggleBtn.Position = UDim2.new(0.1, 0, 0.2, 0)
+        ToggleBtn.Font = Enum.Font.GothamBold
+        ToggleBtn.TextSize = 11
+        ToggleBtn.Text = "START LOOP"
+        ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 100)
+        ToggleBtn.BorderSizePixel = 0
+        ToggleBtn.Active = true
+        ToggleBtn.Draggable = true
+        ToggleBtn.Parent = ScreenGui
+
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(0, 6)
+        Corner.Parent = ToggleBtn
+
+        -- Делаем MenuFrame шире (250 вместо 140), чтобы влезло два столбца настроек
+        local MenuFrame = Instance.new("Frame")
+        MenuFrame.Size = UDim2.new(0, 250, 0, 215)
+        MenuFrame.Position = UDim2.new(1, 10, 0, 0)
+        MenuFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+        MenuFrame.BorderSizePixel = 0
+        MenuFrame.Visible = false
+        MenuFrame.Parent = ToggleBtn
+
+        local MenuCorner = Instance.new("UICorner")
+        MenuCorner.CornerRadius = UDim.new(0, 6)
+        MenuCorner.Parent = MenuFrame
+
+        -- Левый контейнер для Студов (Высота)
+        local StudsFrame = Instance.new("Frame", MenuFrame)
+        StudsFrame.Size = UDim2.new(0.5, -5, 1, 0)
+        StudsFrame.Position = UDim2.new(0, 0, 0, 0)
+        StudsFrame.BackgroundTransparency = 1
+
+        local StudsLayout = Instance.new("UIListLayout", StudsFrame)
+        StudsLayout.Padding = UDim.new(0, 5)
+        StudsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        StudsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+        -- Правый контейнер для Секунд (Длительность)
+        local TimeFrame = Instance.new("Frame", MenuFrame)
+        TimeFrame.Size = UDim2.new(0.5, -5, 1, 0)
+        TimeFrame.Position = UDim2.new(0.5, 5, 0, 0)
+        TimeFrame.BackgroundTransparency = 1
+
+        local TimeLayout = Instance.new("UIListLayout", TimeFrame)
+        TimeLayout.Padding = UDim.new(0, 5)
+        TimeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        TimeLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+        -- 1. Создание кнопок высоты (Левая колонка)
+        local heights = {5, 10, 15, 25, 50, 100}
+        for _, amount in ipairs(heights) do
+            local OptBtn = Instance.new("TextButton")
+            OptBtn.Size = UDim2.new(0, 110, 0, 28)
+            OptBtn.Font = Enum.Font.GothamBold
+            OptBtn.TextSize = 10
+            OptBtn.Text = amount .. " STUDS"
+            OptBtn.BorderSizePixel = 0
+            
+            if amount == teleportStuds then
+                OptBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 150)
+                OptBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            else
+                OptBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+                OptBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+            end
+            
+            local OptCorner = Instance.new("UICorner")
+            OptCorner.CornerRadius = UDim.new(0, 4)
+            OptCorner.Parent = OptBtn
+            OptBtn.Parent = StudsFrame
+            
+            OptBtn.MouseButton1Click:Connect(function()
+                teleportStuds = amount
+                for _, child in ipairs(StudsFrame:GetChildren()) do
+                    if child:IsA("TextButton") then
+                        if child.Text == amount .. " STUDS" then
+                            child.BackgroundColor3 = Color3.fromRGB(0, 200, 150)
+                            child.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        else
+                            child.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+                            child.TextColor3 = Color3.fromRGB(180, 180, 180)
+                        end
+                    end
+                end
+            end)
+        end
+
+        -- 2. Создание кнопок времени полёта (Правая колонка)
+        local durations = {1.0, 1.5, 1.7, 2.0, 2.5, 3.0}
+        for _, sec in ipairs(durations) do
+            local TimeBtn = Instance.new("TextButton")
+            TimeBtn.Size = UDim2.new(0, 110, 0, 28)
+            TimeBtn.Font = Enum.Font.GothamBold
+            TimeBtn.TextSize = 10
+            TimeBtn.Text = string.format("%.1f SEC", sec)
+            TimeBtn.BorderSizePixel = 0
+            
+            if sec == flyDuration then
+                TimeBtn.BackgroundColor3 = Color3.fromRGB(210, 130, 0) -- Оранжевый цвет выделения для времени
+                TimeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            else
+                TimeBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+                TimeBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+            end
+            
+            local TimeCorner = Instance.new("UICorner")
+            TimeCorner.CornerRadius = UDim.new(0, 4)
+            TimeCorner.Parent = TimeBtn
+            TimeBtn.Parent = TimeFrame
+            
+            TimeBtn.MouseButton1Click:Connect(function()
+                flyDuration = sec
+                for _, child in ipairs(TimeFrame:GetChildren()) do
+                    if child:IsA("TextButton") then
+                        if child.Text == string.format("%.1f SEC", sec) then
+                            child.BackgroundColor3 = Color3.fromRGB(210, 130, 0)
+                            child.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        else
+                            child.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+                            child.TextColor3 = Color3.fromRGB(180, 180, 180)
+                        end
+                    end
+                end
+            end)
+        end
+
+        ----------------------------------------
+        -- ЛОГИКА ТРИГГЕРОВ С ТАЙМЕРОМ И ФЕЙДОМ
+        ----------------------------------------
+        local holding = false
+        local holdTime = 0.5 
+
+        local COLOR_START = Color3.fromRGB(0, 160, 100)
+        local COLOR_STOP = Color3.fromRGB(180, 35, 55)
+        local COLOR_WHITE = Color3.fromRGB(255, 255, 255)
+
+        local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local fadeToRedTween = TweenService:Create(ToggleBtn, tweenInfo, {BackgroundColor3 = COLOR_STOP})
+
+        ToggleBtn.MouseButton1Down:Connect(function()
+            holding = true
+            task.delay(holdTime, function()
+                if holding then
+                    holding = false 
+                    MenuFrame.Visible = not MenuFrame.Visible 
+                end
+            end)
+        end)
+
+        ToggleBtn.MouseButton1Up:Connect(function()
+            if holding then
+                holding = false
+                isLooping = not isLooping
+                
+                if isLooping then
+                    fadeToRedTween:Cancel()
+                    ToggleBtn.Text = "WAITING..."
+                    ToggleBtn.BackgroundColor3 = COLOR_STOP
+                    
+                    loopSession = loopSession + 1
+                    local mySession = loopSession
+                    
+                    getgenv().FloatSession = mySession
+                    task.spawn(function()
+                        while getgenv().FloatSession == mySession do
+                            local Character = LocalPlayer.Character
+                            if Character then
+                                local RootPart = Character:FindFirstChild("HumanoidRootPart")
+                                if RootPart then
+                                    RootPart.AssemblyLinearVelocity = Vector3.new(RootPart.AssemblyLinearVelocity.X, 0, RootPart.AssemblyLinearVelocity.Z)
+                                end
+                            end
+                            RunService.Heartbeat:Wait()
+                        end
+                    end)
+                    
+                    task.spawn(function()
+                        while isLooping and loopSession == mySession do
+                            local raycastResult = checkGround()
+                            
+                            if not raycastResult then
+                                ToggleBtn.Text = "SEARCH GROUND"
+                                while isLooping and loopSession == mySession and not raycastResult do
+                                    task.wait(0.1)
+                                    raycastResult = checkGround()
+                                end
+                                if not isLooping or loopSession ~= mySession then break end
+                                
+                                teleportDown(raycastResult)
+                                task.wait(0.3)
+                            end
+                            
+                            if not isLooping or loopSession ~= mySession then break end
+                            
+                            teleportUp(teleportStuds)
+                            
+                            -- Динамический таймер на основе выбранной переменной flyDuration
+                            local timeLeft = flyDuration
+                            while timeLeft > 0 and isLooping and loopSession == mySession do
+                                ToggleBtn.Text = string.format("FLYING: %.1fs", timeLeft)
+                                task.wait(0.1)
+                                timeLeft = timeLeft - 0.1
+                            end
+                            
+                            if not isLooping or loopSession ~= mySession then break end
+                            
+                            ToggleBtn.Text = "LANDING..."
+                            ToggleBtn.BackgroundColor3 = COLOR_WHITE
+                            fadeToRedTween:Play()
+                            
+                            local raycastResult2 = checkGround()
+                            if raycastResult2 then
+                                teleportDown(raycastResult2)
+                                task.wait(0.3)
+                            end
+                        end
+                    end)
+                    
+                else
+                    fadeToRedTween:Cancel()
+                    ToggleBtn.Text = "START LOOP"
+                    ToggleBtn.BackgroundColor3 = COLOR_START
+                    
+                    local mySession = loopSession
+                    
+                    task.spawn(function()
+                        local raycastResult = checkGround()
+                        if not raycastResult then
+                            ToggleBtn.Text = "WAIT GROUND..."
+                        end
+                        
+                        while not raycastResult and getgenv().FloatSession == mySession do
+                            task.wait(0.1)
+                            raycastResult = checkGround()
+                        end
+                        
+                        if getgenv().FloatSession == mySession then
+                            if raycastResult then
+                                teleportDown(raycastResult)
+                            end
+                            getgenv().FloatSession = 0
+                            ToggleBtn.Text = "START LOOP"
+                        end
+                    end)
+                end
+            end
+        end)
+
+    end
+    
+    local gui = game:GetService("CoreGui"):FindFirstChild("LoopTP_HUD_Fixed") or player:WaitForChild("PlayerGui"):FindFirstChild("LoopTP_HUD_Fixed")
+    if gui then
+        gui.Enabled = flyBD_Active
+        
+        if not flyBD_Active then
+            local visuals = workspace:FindFirstChild("TP_Visuals_Loop")
+            if visuals then visuals:Destroy() _G.TargetVisuals = nil end
+            getgenv().FloatSession = 0
+        else
+            if not workspace:FindFirstChild("TP_Visuals_Loop") then
+                local VisualsContainer = Instance.new("Folder", workspace)
+                VisualsContainer.Name = "TP_Visuals_Loop"
+                _G.TargetVisuals = VisualsContainer
+            end
+        end
+    end
+end)
 
 -----------------------------------------------------------
 -- РАЗДЕЛ [ COMBAT ]
@@ -823,15 +1217,25 @@ local function ResetConfig()
 end
 
 CreateButton("Save", "Settings", function(self)
-    if SaveConfig() then self.Text = "Saved!"; task.wait(0.8); self.Text = "Save" end
+    if SaveConfig() then 
+        self.Text = "Saved!"
+        task.wait(0.8)
+        self.Text = "Save" 
+    end
 end)
 
 CreateButton("Load", "Settings", function(self)
-    LoadConfig(); self.Text = "Loaded!"; task.wait(0.8); self.Text = "Load"
+    LoadConfig()
+    self.Text = "Loaded!"
+    task.wait(0.8)
+    self.Text = "Load"
 end)
 
 CreateButton("Reset", "Settings", function(self)
-    ResetConfig(); self.Text = "Reset!"; task.wait(0.8); self.Text = "Reset"
+    ResetConfig()
+    self.Text = "Reset!"
+    task.wait(0.8)
+    self.Text = "Reset"
 end)
 
 -- АВТОЗАГРУЗКА ПРИ ИНЖЕКТЕ
@@ -840,12 +1244,19 @@ task.spawn(function()
     LoadConfig()
 end)
 
------------------------------------------------------------
 -- КНОПКА СВЕРНУТЬ (M)
------------------------------------------------------------
-local minBtn = Instance.new("TextButton", screenGui); minBtn.Size = UDim2.new(0, 35, 0, 35); minBtn.Position = UDim2.new(0, 10, 0, 10); minBtn.Text = "M"
-minBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255); minBtn.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", minBtn).CornerRadius = UDim.new(1,0)
+local minBtn = Instance.new("TextButton", screenGui)
+minBtn.Size = UDim2.new(0, 35, 0, 35)
+minBtn.Position = UDim2.new(0, 10, 0, 10)
+minBtn.Text = "M"
+minBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+minBtn.TextColor3 = Color3.new(1, 1, 1)
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(1,0)
 minBtn.MouseButton1Click:Connect(function() 
     mainFrame.Visible = not mainFrame.Visible 
-    if not mainFrame.Visible then hitboxGui.Enabled = false elseif _G.HitboxEnabled then hitboxGui.Enabled = true end
+    if not mainFrame.Visible then 
+        hitboxGui.Enabled = false 
+    elseif _G.HitboxEnabled then 
+        hitboxGui.Enabled = true 
+    end
 end)
